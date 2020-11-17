@@ -47,28 +47,81 @@ import TVRDART
 import astra
 import numpy as np
 
+###Extra added
+import tifffile
+import pyqtgraph as pq
+
 # Read data (-log has been performed beforehand)
+Custom_Im = tifffile.imread('1Nx128Nchan3Nclass3.tiff')
 data = np.load('nanotube2d.npy')
+pq.image(Custom_Im)
+pq.image(data)
+input()
+
+################################
+##### Make projection data #####
+################################
+NAngles = 64
+M = Custom_Im.shape[0]
+N = Custom_Im.shape[1]
+energies = 1
+FixedAttenuations = [0.25, 0.5, 0.75]
+materials = 3
+
+Angles = np.linspace(0,np.pi,NAngles,False)
+    
+vol_geom = astra.create_vol_geom(M, N)
+proj_geom = astra.create_proj_geom('parallel', 1, M, Angles)
+proj_id = astra.create_projector('cuda', proj_geom, vol_geom)
+
+projData = np.zeros((NAngles, M)) #Contains the (projection) data
+
+def createPhantomAtEnergy(M, N, SegArray):
+    AttProf = np.zeros((M, N))
+    for i in range(1,materials+1):
+        ConcProfile = np.zeros((M, N))
+        ConcProfile[SegArray == i] = 1
+        AttProf += ConcProfile*FixedAttenuations[i-1]
+    return AttProf
+
+#Create phantom at energy level
+P = createPhantomAtEnergy(M, N, Custom_Im)
+           
+#Compute forward projection and store the "data"
+sinogram_id, sinogram = astra.create_sino(P, proj_id)
+#Optional: add poisson noise to the projection data
+#if(addNoise == True):
+#    print("Adding noise...")
+#    sinogram = astra.add_noise_to_sino(sinogram, noiseInt)
+projData[:,:] = sinogram
+
+pq.image(sinogram)
+input()
+################################
+
+
+data = projData
+
 [Nan,Ndetx] = data.shape
-angles = np.linspace(-50,50,Nan,True) * (np.pi/180)
+#angles = np.linspace(-50,50,Nan,True) * (np.pi/180)
 
 # Intensity-offset correction
-print('Intensity-offset correction...')
-offset = -0.00893
-data -= offset
+#print('Intensity-offset correction...')
+#offset = -0.00893
+#data -= offset
 
 # Setting reconstruction geometry
 print('Configure projection and volume geometry...')
 Nx = Ndetx
 Nz = Ndetx
 # create projection geometry and operator
-proj_geom = astra.create_proj_geom('parallel', 1.0, Ndetx, angles)
+proj_geom = astra.create_proj_geom('parallel', 1.0, Ndetx, Angles)
 vol_geom = astra.create_vol_geom(Nz,Nx)
 proj_id = astra.create_projector('cuda',proj_geom,vol_geom)
 W = astra.OpTomo(proj_id)
 
 # Configuration of TVR-DART parameters
-Ngv = 2 # number of material composition in the specimen (including vacuum)
+Ngv = 3 # number of material composition in the specimen (including vacuum)
 K = 4*np.ones(Ngv-1) # sharpness of soft segmentation function
 lamb = 10 # weight of TV
 Niter = 50 # number of iterations
@@ -88,6 +141,8 @@ gv = np.linspace(0, 1, Ngv,True)
 param0 = TVRDART.gv2param(gv,K)
 Segrec,param_esti = TVRDART.joint(W, p, recsirt, param0 ,lamb)
 [gv,K] = TVRDART.param2gv(param_esti)
+
+print("ESTIMATION??", param_esti)
 
 # Reconstruction with estimated parameters
 print('Reconstruction with estimated parameters...')
@@ -112,8 +167,7 @@ pylab.title('TVR-DART')
 
 # Save results
 print('Saving results...')
-np.save('TVRDART2Dreconstruction.npy',Segrec)
-
-import pyqtgraph as pq
+np.save('TVRDART2Dreconstruction_CustomIm.npy',Segrec)
+pq.image(Custom_Im)
 pq.image(Segrec)
 input()
