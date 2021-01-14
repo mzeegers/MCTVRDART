@@ -52,6 +52,7 @@ print('Read data...')
 data = np.load('nanotube.npy')
 data = np.transpose(data,(1,2,0))
 [Nan,Ndetx,Ndety] = data.shape
+print(data.shape)
 Nan = 698
 angles = np.linspace(-50,50,Nan,True) * (np.pi/180)
 
@@ -111,3 +112,9 @@ Segrec = Segrec*sf;
 # Save reconstruction
 print('Saving results...')
 np.save('TVRDART3Dreconstruction.npy',Segrec)
+
+import pyqtgraph as pq
+pq.image(Segrec)
+pq.image(Segrec.swapaxes(0,1))
+pq.image(Segrec.swapaxes(0,2))
+input()

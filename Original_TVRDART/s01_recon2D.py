@@ -78,10 +78,15 @@ print('Initial reconstruction...')
 import SIRT
 recsirt = SIRT.recon(data, 50, proj_geom, vol_geom, 'cuda')
 sf = np.max(recsirt)
+print("Scaling factor", sf)
 data = data/sf
 p = data.reshape(Nan*Ndetx)
 recsirt = recsirt/sf
-    
+
+#import pyqtgraph as pq
+#pq.image(recsirt)
+#input()
+
 # Automatic parameter estimation
 print('Parameter estimation...')
 gv = np.linspace(0, 1, Ngv,True)

@@ -43,7 +43,7 @@
 # 2015. doi: 10.1038/srep14516
 # 
 #------------------------------------------------------------------------------
-import TVRDART
+import MC_TVRDART
 import astra
 import numpy as np
 
@@ -53,7 +53,7 @@ import pyqtgraph as pq
 
 # Read data (-log has been performed beforehand)
 Custom_Im = tifffile.imread('1Nx128Nchan3Nclass3.tiff')
-data = np.load('nanotube2d.npy')
+#data = np.load('nanotube2d.npy')
 pq.image(Custom_Im)
 #pq.image(data)
 #input()
@@ -61,11 +61,11 @@ pq.image(Custom_Im)
 ################################
 ##### Make projection data #####
 ################################
-NAngles = 25
+NAngles = 100
 M = Custom_Im.shape[0]
 N = Custom_Im.shape[1]
-energies = 1
-FixedAttenuations = [[0, 0.2, 0.5, 0.8]]#, [0, 0.5, 0.7, 0.9]]
+energies = 2
+FixedAttenuations = [[0, 0.2, 0.5, 0.8], [0, 0.5, 0.7, 0.9]]
 materials = 4
 
 Angles = np.linspace(0,np.pi,NAngles,False)
@@ -87,8 +87,10 @@ def createPhantomAtEnergy(M, N, SegArray, FA):
     return AttProf
 
 #Create phantom at energy level
+AllP = np.zeros((energies,M,N))
 for e in range(0, energies):
     P = createPhantomAtEnergy(M, N, Custom_Im, FixedAttenuations[e])
+    AllP[e,:,:] = P
     ###pq.image(P)
     
            
@@ -101,10 +103,14 @@ for e in range(0, energies):
     projData[e,:,:] = sinogram
 
 pq.image(projData)
-#input()
-################################
 
-Allrecsirt = np.zeros((energies, M, N))
+
+#######################################
+##### Make initial reconstruction #####
+#######################################
+
+Allrecsirt = np.zeros((energies, M, N))                             #Contains all initial reconstructions per energy
+Allp = np.zeros((energies, projData.shape[1]*projData.shape[2]))    #Contains all projection data per energy (as a 2D array)
 
 for e in range(0, energies):
 
@@ -135,50 +141,54 @@ for e in range(0, energies):
     Niter = 50 # number of iterations
 
     # Initial reconstruction and normalization
-    print('Initial reconstruction...')
+    print('Initial reconstruction in channel', e, '...')
     import SIRT
     recsirt = SIRT.recon(data, 50, proj_geom, vol_geom, 'cuda')
-    pq.image(recsirt)
-    print(np.max(recsirt))
-    input()
+    sf = np.max(recsirt)                                          #Scaling factor (such that max intensity in reconstructions is 1)
     
-    sf = np.max(recsirt)
-    sf = 1.0
-    data = data/sf
-    p = data.reshape(Nan*Ndetx)
-    recsirt = recsirt/sf
-
+    #Store reconstructio and projection data
     Allrecsirt[e,:,:] = recsirt
+    p = data.reshape(Nan*Ndetx)
+    Allp[e,:] = p
+
+#Compute scaling factor and apply it to all channels
+sf = np.max(Allrecsirt)
+print("Scaling factor: ", sf)
+Allrecsirt = Allrecsirt/sf
+Allp = Allp/sf
 
 pq.image(Allrecsirt)
 input()
 
 
+#######################################
+##### Estemiate the parameters    #####
+#######################################
     
 # Automatic parameter estimation
 print('Parameter estimation...')
-#gvMC = [np.linspace(0, 1, Ngv,True) for e in range(0,energies)]
 gvMC = [np.linspace(0, 1, Ngv,True) for e in range(0,energies)]
-print("gvMC::", gvMC)
-#gv = [0, 0.2, 0.5, 0.8]
+print("Initial grey values gvMC:", gvMC)
 #param0MC = [MC_TVRDART.gv2param(gvMC[e],K) for e in range(0,energies)]          #### MAKEN ALS EEN GEFLATTENDE LIJST/ARRAY EN VERDER GOED SLICEN PER CHANNEL!!! 
 
 param0MC = np.empty((Ngv-1+len(K))*energies)
 for e in range(0,energies):
     start = e*(Ngv-1+len(K))
     stop = (e+1)*(Ngv-1+len(K))
-    param0MC[start:stop] = TVRDART.gv2param(gvMC[e],K)
+    print(start, stop)
+    param0MC[start:stop] = MC_TVRDART.gv2param(gvMC[e],K)
 
 ### param0MC = [MC_TVRDART.gv2param(gvMC[e],K) for e in range(0,energies)]
 
-print(param0MC)
+print("Param0MC", param0MC)
 print(param0MC.shape)
-input()
+
 print("Start values", gvMC, param0MC)
-Segrec,param_esti = TVRDART.joint(W, p, Allrecsirt[0,:,:], param0MC, lamb)
+print(W.shape, Allp.shape, Allrecsirt.shape, param0MC.shape)
+Segrec,param_esti = MC_TVRDART.jointMC(W, Allp, Allrecsirt, param0MC, lamb, sf=sf)
 #Segrec,param_esti = TVRDART.joint(W, p, recsirt, param0 ,lamb)
 #print("Estemiate??", gv)
-[gv,K] = TVRDART.param2gv(param_esti)
+[gvMC,K] = MC_TVRDART.param2gv(param_esti)
 
 #raise Exception('pause')
 
@@ -186,22 +196,29 @@ print("ESTIMATION??", param_esti)
 
 # Reconstruction with estimated parameters
 print('Reconstruction with estimated parameters...')
-Segrec,rec = TVRDART.recon(W,p, recsirt, param_esti, lamb, Niter)
-gv = gv*sf
-recsirt = recsirt*sf
+Segrec,rec = MC_TVRDART.reconMC(W,Allp, Allrecsirt, param_esti, lamb, Niter)
+gvMC = gvMC*sf
+Allrecsirt = Allrecsirt*sf
 Segrec = Segrec*sf;
 
-print("VALUES", sf, gv)
-pq.image(recsirt)
+print("VALUES", sf, gvMC)
+pq.image(Allrecsirt)
 pq.image(Segrec)
-input()
+#input()
 
 #-----------------------------------------------------------------------------
 # Plots
-import pylab
+
+print("Finished!!")
+#pq.image(Allrecsirt)
+pq.image(AllP)
+#pq.image(Segrec)
+input()
+
+'''import pylab
 pylab.gray()
 pylab.figure(1)
-pylab.imshow(recsirt)
+pylab.imshow(Allrecsirt)
 pylab.colorbar()
 pylab.title('SIRT')
 
@@ -209,10 +226,10 @@ pylab.figure(2)
 pylab.imshow(Segrec)
 pylab.colorbar()
 pylab.title('TVR-DART')
-
+'''
 # Save results
 print('Saving results...')
-np.save('TVRDART2Dreconstruction_CustomIm.npy',Segrec)
+np.save('MC_TVRDART2Dreconstruction_CustomIm.npy',Segrec)
 pq.image(P)
 pq.image(Segrec)
 input()
