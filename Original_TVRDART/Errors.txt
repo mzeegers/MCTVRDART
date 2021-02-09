@@ -1,0 +1,28 @@
+N = 200
+
+
+SIMPLE MINIMIZER
+
+NiterParam      |   NiterRecon      |   MC      | SC
+
+
+10              
+10                  50
+10                  100                 2.19     0.84        
+
+20
+20                  50
+20                  100
+20                  200
+20                  300
+
+
+30                  2                   59.79    TODO
+30                  50                  6.27     2.23
+30                  100                 1.58     0.91
+30                  200
+30                  300
+30                  1000                0.28     0.37
+
+
+Varieren van noise (Poisson laag en hoog), (angles, #materialen)

@@ -52,19 +52,28 @@ import numpy as np
 import tifffile
 import pyqtgraph as pq
 
+import random
+np.random.seed(12345)
+random.seed(12345)
+
 # Read data (-log has been performed beforehand)
 Custom_Im = tifffile.imread('1Nx128Nchan3Nclass3.tiff')
 #pq.image(Custom_Im)
 #input()
 
+NiterParam = 10
+NiterRecon = 100
+
+
 ################################
 ##### Make projection data #####
 ################################
-NAngles = 100
+NAngles = 200
 M = Custom_Im.shape[0]
 N = Custom_Im.shape[1]
-energies = 1
-FixedAttenuations = [[0, 0.1, 0.5, 0.8],[0, 0.2, 0.5, 0.8]]
+energies = 10
+FixedAttenuations = [[0, 0.2, 0.5, 0.8], [0, 0.5, 0.7, 0.9], [0, 0.1, 0.3, 0.95], [0, 0.1, 0.2, 0.4], [0, 0.15, 0.5, 0.6], [0, 0.15, 0.25, 0.35], [0, 0.4, 0.7, 0.9], [0, 0.3, 0.35, 0.97], [0, 0.05, 0.4, 0.6], [0, 0.8, 0.3, 0.2]]
+#[[0, 0.1, 0.5, 0.8],[0, 0.2, 0.5, 0.8]]
 #[[0, 0.1, 0.85, 0.6], [0, 0.85, 0.1, 0.87]]        #Example with decreasing error in channel 0
 #[[0, 0.2, 0.5, 0.8], [0, 0.5, 0.7, 0.9], [0, 0.1, 0.3, 0.95], [0, 0.1, 0.2, 0.4], [0, 0.15, 0.5, 0.6], [0, 0.15, 0.25, 0.35], [0, 0.4, 0.7, 0.9], [0, 0.3, 0.35, 0.97], [0, 0.05, 0.4, 0.6], [0, 0.8, 0.3, 0.2]] #Example with increasing error in channel 0
 materials = 4
@@ -183,7 +192,7 @@ for e in range(0,energies):
 
 #print("Start values", gvMC, param0MC)
 #print(W.shape, Allp.shape, Allrecsirt.shape, param0MC.shape)
-Segrec,param_esti = MC_TVRDART.jointMC(W, Allp, Allrecsirt, param0MC, lamb, sf=sf, ch = energies)
+Segrec,param_esti = MC_TVRDART.jointMC(W, Allp, Allrecsirt, param0MC, lamb, Niter = NiterParam, sf=sf, ch = energies)
 [gvMC,K] = MC_TVRDART.param2gvMC(param_esti, energies)
 
 #raise Exception('pause')
@@ -192,7 +201,7 @@ Segrec,param_esti = MC_TVRDART.jointMC(W, Allp, Allrecsirt, param0MC, lamb, sf=s
 
 # Reconstruction with estimated parameters
 #print('Reconstruction with estimated parameters...')
-Segrec,rec = MC_TVRDART.reconMC(W,Allp, Allrecsirt, param_esti, lamb, Niter, ch = energies)
+Segrec,rec = MC_TVRDART.reconMC(W,Allp, Allrecsirt, param_esti, lamb, Niter = NiterRecon, ch = energies)
 gvMC = gvMC*sf
 Allrecsirt = Allrecsirt*sf
 Segrec = Segrec*sf;
@@ -216,10 +225,12 @@ print("Finished!!")
 pq.image(AllP)
 #pq.image(Segrec)
 #pq.image(np.square(Segrec[0,:,:] - AllP[0,:,:]))
+total = 0
 for e in range(0, energies):
+    total += np.sum(np.square(Segrec[e,:,:] - AllP[e,:,:]))
     print('Error in channel', e, ":", np.sum(np.square(Segrec[e,:,:] - AllP[e,:,:])))
+print("Average error:", total/float(energies))
 input()
-
 
 # Save results
 #print('Saving results...')
@@ -308,7 +319,7 @@ for e in range(0, energies):
 
     #print("Start values", gvMC, param0MC)
     #print(W.shape, Allp.shape, Allrecsirt2.shape, param0MC.shape)
-    Segrec,param_esti = TVRDART.joint(W, Allp[e,:], Allrecsirt2[e,:,:], param0, lamb)
+    Segrec,param_esti = TVRDART.joint(W, Allp[e,:], Allrecsirt2[e,:,:], param0, lamb, Niter = NiterParam)
     [gv,K] = TVRDART.param2gv(param_esti)
 
     #raise Exception('pause')
@@ -317,7 +328,7 @@ for e in range(0, energies):
 
     # Reconstruction with estimated parameters
     #print('Reconstruction with estimated parameters...')
-    Segrec,rec = TVRDART.recon(W,Allp[e,:], Allrecsirt2[e,:,:], param_esti, lamb, Niter)
+    Segrec,rec = TVRDART.recon(W,Allp[e,:], Allrecsirt2[e,:,:], param_esti, lamb, Niter = NiterRecon)
     gv = gv*sf
     Allrecsirt2 = Allrecsirt2*sf
     Segrec = Segrec*sf;
@@ -343,11 +354,12 @@ print("Finished!!")
 pq.image(AllP)
 #pq.image(Segrec)
 #pq.image(np.square(Segrec[0,:,:] - AllP[0,:,:]))
+total = 0
 for e in range(0, energies):
+    total += np.sum(np.square(Segrec2[e,:,:] - AllP[e,:,:]))
     print('Error in channel', e, ":", np.sum(np.square(Segrec2[e,:,:] - AllP[e,:,:])))
+print("Average error:", total/float(energies))
 input()
-
-
 # Save results
 #print('Saving results...')
 
