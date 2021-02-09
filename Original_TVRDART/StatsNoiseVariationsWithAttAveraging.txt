@@ -1,21 +1,6 @@
-NL 4000
-Joint reconstruction error: 112.103151535
-Seg reconstruction error: 16.7677086807
-NL 6000
-Joint reconstruction error: 79.338979275
-Seg reconstruction error: 10.8554466858
-NL 8000
-Joint reconstruction error: 64.5705557406
-Seg reconstruction error: 7.56439498938
-NL 10000
-Joint reconstruction error: 54.5993009843
-Seg reconstruction error: 5.71397419874
-NL 12000
-Joint reconstruction error: 49.5762812326
-Seg reconstruction error: 4.94778817306
-NL 14000
-Joint reconstruction error: 44.1041766827
-Seg reconstruction error: 3.90306341797
-NL 16000
-Joint reconstruction error: 40.9330881487
-Seg reconstruction error: 3.66591752616
+NL 500
+1458.16485919
+1429.36419014
+Joint reconstruction error: 1458.16485919
+Seg reconstruction error: 1429.36419014
+NL 1000

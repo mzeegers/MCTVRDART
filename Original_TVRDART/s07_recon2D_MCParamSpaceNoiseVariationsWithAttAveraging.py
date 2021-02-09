@@ -62,19 +62,18 @@ Custom_Im = tifffile.imread('1Nx128Nchan3Nclass3.tiff')
 #pq.image(Custom_Im)
 #input()
 
+os.makedirs('s07_ParamSpaceImages', exist_ok = True)
 
-#f = open("StatsNoiseVariationsWithAttAveraging.txt", "w")
+f = open("StatsNoiseVariationsWithAttAveraging.txt", "w")
 
-#os.makedirs('ParamNoiseVariationsWithAttAveragingSpaceImages/', exist_ok=True)
-
-ParamsNoiseLevel = [4000,6000,8000,10000,12000,14000,16000]
+ParamsNoiseLevel = [500,1000,2000,4000,6000,8000,10000,12000,14000,16000]
 ParamsAngles = 180
 ParamsNiterParamJoint = 30
 ParamsNiterReconJoint = 300
 ParamsNiterParamSep = 10
 ParamsNiterReconSep = 100
 
-FixedAttenuationsAll = np.random.rand(1,10,4) #iterations, noiselevels, materials
+FixedAttenuationsAll = np.random.rand(1,10,4) #iterations, energies, materials
 FixedAttenuationsAll[:,:,0] = 0
 print(FixedAttenuationsAll)
 
@@ -84,7 +83,7 @@ for NL in ParamsNoiseLevel:
     
     print("NL " + str(NL))
 
-    #f.write("NL " + str(NL) + "\n")            
+    f.write("NL " + str(NL) + "\n")            
 
     NAngles = ParamsAngles
     NoiseLevel = NL
@@ -257,7 +256,8 @@ for NL in ParamsNoiseLevel:
         # Plots
 
         print("Finished!!")
-        #tifffile.imsave("/ufs/zeegers/Documents/PhD/MCTVRDART/Original_TVRDART/ParamSpaceImages/NL" + NL + "A" + str(A) + "NiP" +  str(NiP) + "NiR" + str(NiR) + "MCRec.tiff", Segrec.astype(np.float32))
+        if(it == 1):
+            tifffile.imsave("/ufs/zeegers/Documents/PhD/MCTVRDART/Original_TVRDART/s07_ParamSpaceImages/NL" + str(NL) + "A" + str(NAngles) + "NiP" +  str(ParamsNiterParamJoint) + "NiR" + str(ParamsNiterReconJoint) + "Run" + str(it) + "MCRec.tiff", Segrec.astype(np.float32))
         #pq.image(Allrecsirt)
         #pq.image(AllP)
         #pq.image(Segrec)
@@ -269,7 +269,7 @@ for NL in ParamsNoiseLevel:
         print("Average error:", total/float(energies))
         AvgErrorJoint = total/float(energies)
         AvgErrorJointTotal += AvgErrorJoint
-        #f.write(str(total/float(energies)) + "\n")
+        f.write(str(total/float(energies)) + "\n")
         #input()
 
         # Save results
@@ -372,7 +372,7 @@ for NL in ParamsNoiseLevel:
             #print('Reconstruction with estimated parameters...')
             Segrec,rec = TVRDART.recon(W,Allp[e,:], Allrecsirt2[e,:,:], param_esti, lamb, Niter = NiterRecon)
             gv = gv*sf
-            Allrecsirt2 = Allrecsirt2*sf
+            Allrecsirt2[e,:,:] = Allrecsirt2[e,:,:]*sf
             Segrec = Segrec*sf;
 
             Segrec2[e,:,:] = Segrec
@@ -392,7 +392,8 @@ for NL in ParamsNoiseLevel:
         # Plots
 
         print("Finished!!")
-        #tifffile.imsave("/ufs/zeegers/Documents/PhD/MCTVRDART/Original_TVRDART/ParamSpaceImages/NL" + NL + "A" + str(A) + "NiP" +  str(NiP) + "NiR" + str(NiR) + "SCRec.tiff", Segrec2.astype(np.float32))
+        if(it == 1):        
+            tifffile.imsave("/ufs/zeegers/Documents/PhD/MCTVRDART/Original_TVRDART/s07_ParamSpaceImages/NL" + str(NL) + "A" + str(NAngles) + "NiP" +  str(ParamsNiterParamSep) + "NiR" + str(ParamsNiterReconSep) + "Run" + str(it) + "SCRec.tiff", Segrec2.astype(np.float32))
         #pq.image(Allrecsirt2)
         #pq.image(AllP)
         #pq.image(Segrec)
@@ -403,8 +404,8 @@ for NL in ParamsNoiseLevel:
             #print('Error in channel', e, ":", np.sum(np.square(Segrec2[e,:,:] - AllP[e,:,:])))
         print("Average error:", total/float(energies))
         AvgErrorSep = total/float(energies)
-        AvgErrorSepTotal = AvgErrorSep
-        #f.write(str(total/float(energies)) + "\n")
+        AvgErrorSepTotal += AvgErrorSep
+        f.write(str(total/float(energies)) + "\n")
                 
 
         #input()
@@ -421,7 +422,7 @@ for NL in ParamsNoiseLevel:
 
     AvgErrorJointTotal = AvgErrorJointTotal/FixedAttenuationsAll.shape[0]
     AvgErrorSepTotal = AvgErrorSepTotal/FixedAttenuationsAll.shape[0]
-    #f.write("Joint reconstruction error: " + str(AvgErrorJointTotal) + "\n")
-    #f.write("Seg reconstruction error: " + str(AvgErrorSepTotal) + "\n")
+    f.write("Joint reconstruction error: " + str(AvgErrorJointTotal) + "\n")
+    f.write("Seg reconstruction error: " + str(AvgErrorSepTotal) + "\n")
 
-#f.close()
+f.close()
